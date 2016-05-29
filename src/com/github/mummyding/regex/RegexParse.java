@@ -71,7 +71,7 @@ public class RegexParse {
 
     private Regex parse(){
         Regex regex = getPrefix();
-        while (hasMore() && top() == '*' || top() == '+' || top() == '?'){
+        while (hasMore() && (top() == '*' || top() == '+' || top() == '?')){
             char topChar = top();
             switch (topChar){
                 case '*':
@@ -132,13 +132,40 @@ public class RegexParse {
     }
 
     private Regex multiChoice(){
+        boolean not = false;
+        if (top() == '^'){
+            not = true;
+            pass('^');
+        }
 
+        MultiChoice multiChoice = new MultiChoice();
+        while (hasMore() && top() != ']'){
+            // 先解析一部分
+            MultiChoice segment = (MultiChoice) singleChoice();
+            //添加进去
+            multiChoice.or(segment);
+            while (top() == '&'){
+                // 处理连接
+                pass('&');
+                pass('&');
+                MultiChoice left = (MultiChoice) linkChoice();
+                multiChoice.and(left);
+            }
+        }
+        // 非操作
+        if (not) multiChoice.not();
+        return multiChoice;
     }
 
 
 
-    private Regex andOper(){
-
+    private Regex linkChoice(){
+        MultiChoice multiChoice = new MultiChoice();
+        while (hasMore() && top() !=']' && top() != '&'){
+            MultiChoice segment = (MultiChoice) singleChoice( );
+            multiChoice.or(segment);
+        }
+        return multiChoice;
     }
 
 
