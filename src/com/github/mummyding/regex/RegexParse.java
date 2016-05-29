@@ -169,16 +169,16 @@ public class RegexParse {
     }
 
 
-    public static int NULL = 0;
-    public static int Sequence = 1;
-    public static int Choice = 2;
-    public static int MultiChoice = 3;
-    public static int AnyChar = 4;
-    public static int EscapeChar = 5;
-    public static int PlusChar = 6;
-    public static int StarChar = 7;
-    public static int QuestionChar = 8;
-    public static int NormalChar = 9;
+    public final static int NULL = 0;
+    public final static int Sequence = 1;
+    public final static int Choice = 2;
+    public final static int MultiChoice = 3;
+    public final static int AnyChar = 4;
+    public final static int EscapeChar = 5;
+    public final static int PlusChar = 6;
+    public final static int StarChar = 7;
+    public final static int QuestionChar = 8;
+    public final static int NormalChar = 9;
 
 
 }
