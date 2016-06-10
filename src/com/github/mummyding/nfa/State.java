@@ -6,6 +6,7 @@ package com.github.mummyding.nfa;
 public class State {
 
     public final static int Split = 256;
+    public final static State MatchState = new State(null,null,257);
     State out;
     State out1;
     int lastlist;
