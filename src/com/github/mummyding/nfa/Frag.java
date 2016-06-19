@@ -8,9 +8,18 @@ import java.util.ArrayList;
 public class Frag {
     State start;
     ArrayList<State> out;
+    ArrayList<State> out1;
 
-    public Frag(State start, ArrayList<State> out) {
+    public Frag(State s, ArrayList<State> o)
+    {
+        start = s;
+        out = o;
+        out1 = new ArrayList<State>();
+    }
+
+    public Frag(State start, ArrayList<State> out, ArrayList<State> out1) {
         this.start = start;
         this.out = out;
+        this.out1 = out1;
     }
 }

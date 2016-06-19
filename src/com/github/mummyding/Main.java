@@ -9,9 +9,9 @@ import com.github.mummyding.regex.RegexParse;
 public class Main {
 
     public static void main(String[] args) {
-        RegexParse parse = new RegexParse("43dfdfd");
+        RegexParse parse = new RegexParse("4");
         Regex regex = parse.load();
         Pattern pattern = new Pattern(regex);
-        System.out.print(pattern.match("23323"));
+        System.out.print(pattern.match("5*54"));
     }
 }

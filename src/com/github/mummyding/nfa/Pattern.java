@@ -1,8 +1,11 @@
 package com.github.mummyding.nfa;
 
+import com.github.mummyding.NfaList;
 import com.github.mummyding.regex.*;
+import com.sun.xml.internal.rngom.ast.om.ParsedPattern;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -12,6 +15,11 @@ import java.util.List;
 public class Pattern {
 
     LinkedList<Frag> stack = new LinkedList<>();
+    private State start;
+    private DState dStart;
+    private ArrayList<State> l1 = new ArrayList<State>();
+    private ArrayList<State> l2 = new ArrayList<State>();
+    private HashMap<NfaList, DState> dStateMap = new HashMap<NfaList,DState>();
     Regex regex ;
     public Pattern(Regex regex) {
         this.regex = regex;
@@ -29,31 +37,34 @@ public class Pattern {
                     Frag f1 = toNFA(sequence.first);
                     Frag f2 = toNFA(sequence.second);
                     patch(f1.out, f2.start);
-                    return new Frag(f1.start, f2.out);
+                    patch(f1.out,f2.start);
+                    return new Frag(f1.start, f2.out,f2.out1);
                 }
             case RegexParse.Choice:
                 Choice choice = (Choice) regex;
                 Frag f1 = toNFA(choice.first);
                 Frag f2 = toNFA(choice.second);
                 State s = new State(f1.start, f2.start, State.Split);
-                return new Frag(s, append(f1.out, f2.out));
+                return new Frag(s, append(f1.out, f2.out),append(f1.out,f2.out1));
             case RegexParse.PlusChar:
                 PlusChar plusChar = (PlusChar) regex;
                 Frag frag = toNFA(plusChar.value);
-                s = new State(frag.start, null, State.Split);
+                s = new State(frag.start, frag.start, State.Split);
                 patch(frag.out, s);
-                return new Frag(frag.start, toList(s));
+                patch1(frag.out1,s);
+                return new Frag(frag.start, new ArrayList<State>(), toList(s));
             case RegexParse.StarChar:
                 StarChar starChar = (StarChar) regex;
-                frag = toNFA(starChar);
+                frag = toNFA(starChar.value);
                 s = new State(frag.start, null, State.Split);
                 patch(frag.out, s);
-                return new Frag(s, null);
+                patch1(frag.out1,s);
+                return new Frag(frag.start, new ArrayList<State>(),toList(s));
             case RegexParse.QuestionChar:
                 QuestionChar questionChar = (QuestionChar) regex;
                 frag = toNFA(questionChar.value);
                 s = new State(frag.start, null, State.Split);
-                return new Frag(s, frag.out);
+                return new Frag(s, frag.out,append(frag.out1,toList(s)));
             case RegexParse.NormalChar:
                 NormalChar normalChar = (NormalChar) regex;
                 s = new State(null, null, normalChar.value);
@@ -84,6 +95,14 @@ public class Pattern {
         }
     }
 
+    public void patch1(ArrayList<State> l, State s)
+    {
+        for (int i = 0; i < l.size(); i++)
+        {
+            l.get(i).out1 = s;
+        }
+    }
+
     private ArrayList append(ArrayList l1, ArrayList l2) {
         l1.addAll(l2);
         return l1;
@@ -95,24 +114,40 @@ public class Pattern {
         return list;
     }
 
-    List L1 = new ArrayList(),L2 = new ArrayList();
     public boolean match( String goalStr) {
         Frag frag = toNFA(regex);
         patch(frag.out,State.MatchState);
-        List cList = startList(frag.start);
-        List nList = L2;
-        for (int i=0 ; i<goalStr.length() ;i++){
-            step(cList,goalStr.charAt(i));
-            List t = cList;
-            cList = nList;
-            nList = t;
+        patch1(frag.out1,State.MatchState);
+
+        this.start = frag.start;
+        NfaList startNFA = new NfaList(startList(start, l1));
+        dStart = new DState(startNFA);
+        dStateMap.put(startNFA, dStart);
+
+
+        ArrayList<State> clist, nlist, t;
+        for (int startIndex = 0; startIndex < goalStr.length(); startIndex++)
+        {
+            clist = startList(start, l1);
+            nlist = l2;
+            for (int i = startIndex; i < goalStr.length(); i++)
+            {
+                char c = goalStr.charAt(i);
+                step(clist, c - ' ', nlist);
+                t = clist;
+                clist = nlist;
+                nlist = t;
+                if (clist.isEmpty()) break;
+                if (isMatch(clist)) return true;
+            }
+            if (isMatch(clist)) return true;
         }
-        return isMatch(cList);
+        return false;
     }
 
     boolean isMatch(List l){
         for (int i=0 ; i<l.size() ; i++){
-            if (l.get(i) == State.MatchState){
+            if (l.get(i).equals(State.MatchState)){
                 return true;
             }
         }
@@ -121,18 +156,18 @@ public class Pattern {
 
     int listid;
 
-    List startList(State s) {
+    private ArrayList<State> startList(State s, ArrayList<State> l)
+    {
         listid++;
-        L1= new ArrayList<>();
-        addState(L1, s);
-        return L1;
+        l.clear();
+        addState(l, s);
+        return l;
     }
 
     void addState(List l, State s) {
         if (s == null || s.lastlist == listid) {
             return;
         }
-        s.lastlist = listid;
         if (s.lastlist == State.Split) {
             addState(l, s.out);
             addState(l, s.out1);
@@ -141,15 +176,24 @@ public class Pattern {
         l.add(s);
     }
 
-    void step(List cList,int c){
+    private void step(ArrayList<State> clist, int c, ArrayList<State> nlist)
+    {
+        int i;
         State s;
         listid++;
-        List nList = new ArrayList();
-        for (int i=0 ; i<cList.size() ;i++){
-            s = (State) cList.get(i);
-            if (s.lastlist == c){
-                addState(nList,s.out);
-            }
+        nlist.clear();
+        for (i = 0; i < clist.size(); i++)
+        {
+            s = clist.get(i);
+            if (s.c == c || (s.c == RegexParse.AnyChar && c != '\n' - ' ')
+                    || ( Character.isLetter(s.c))
+                    || (!Character.isLetter(s.c))) addState(
+                    nlist, s.out);
+          /*  else if (s.c == Scale)
+            {
+                ScaleState ss = (ScaleState) s;
+                if (ss.scale[c]) addState(nlist, ss.out);
+            }*/
         }
     }
 
