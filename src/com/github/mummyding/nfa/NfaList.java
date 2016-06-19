@@ -1,6 +1,4 @@
-package com.github.mummyding;
-
-import com.github.mummyding.nfa.State;
+package com.github.mummyding.nfa;
 
 import java.util.ArrayList;
 import java.util.Arrays;

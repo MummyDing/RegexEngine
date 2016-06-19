@@ -1,12 +1,8 @@
 package com.github.mummyding.nfa;
 
-import com.github.mummyding.NfaList;
 import com.github.mummyding.regex.*;
-import com.sun.xml.internal.rngom.ast.om.ParsedPattern;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -14,16 +10,13 @@ import java.util.List;
  */
 public class Pattern {
 
-    LinkedList<Frag> stack = new LinkedList<>();
     private State start;
-    private DState dStart;
     private ArrayList<State> l1 = new ArrayList<State>();
     private ArrayList<State> l2 = new ArrayList<State>();
-    private HashMap<NfaList, DState> dStateMap = new HashMap<NfaList,DState>();
-    Regex regex ;
+    Regex regex;
+
     public Pattern(Regex regex) {
         this.regex = regex;
-
     }
 
     private Frag toNFA(Regex regex) {
@@ -37,53 +30,57 @@ public class Pattern {
                     Frag f1 = toNFA(sequence.first);
                     Frag f2 = toNFA(sequence.second);
                     patch(f1.out, f2.start);
-                    patch(f1.out,f2.start);
-                    return new Frag(f1.start, f2.out,f2.out1);
+                    patch(f1.out, f2.start);
+                    return new Frag(f1.start, f2.out, f2.out1);
                 }
             case RegexParse.Choice:
                 Choice choice = (Choice) regex;
                 Frag f1 = toNFA(choice.first);
                 Frag f2 = toNFA(choice.second);
                 State s = new State(f1.start, f2.start, State.Split);
-                return new Frag(s, append(f1.out, f2.out),append(f1.out,f2.out1));
+                return new Frag(s, append(f1.out, f2.out), append(f1.out, f2.out1));
             case RegexParse.PlusChar:
                 PlusChar plusChar = (PlusChar) regex;
                 Frag frag = toNFA(plusChar.value);
                 s = new State(frag.start, frag.start, State.Split);
                 patch(frag.out, s);
-                patch1(frag.out1,s);
+                patch1(frag.out1, s);
                 return new Frag(frag.start, new ArrayList<State>(), toList(s));
             case RegexParse.StarChar:
                 StarChar starChar = (StarChar) regex;
                 frag = toNFA(starChar.value);
                 s = new State(frag.start, null, State.Split);
                 patch(frag.out, s);
-                patch1(frag.out1,s);
-                return new Frag(frag.start, new ArrayList<State>(),toList(s));
+                patch1(frag.out1, s);
+                return new Frag(frag.start, new ArrayList<State>(), toList(s));
             case RegexParse.QuestionChar:
                 QuestionChar questionChar = (QuestionChar) regex;
                 frag = toNFA(questionChar.value);
                 s = new State(frag.start, null, State.Split);
-                return new Frag(s, frag.out,append(frag.out1,toList(s)));
+                return new Frag(s, frag.out, append(frag.out1, toList(s)));
             case RegexParse.NormalChar:
                 NormalChar normalChar = (NormalChar) regex;
-                s = new State(null, null, normalChar.value);
+                s = new State(normalChar.value);
                 return new Frag(s, toList(s));
             case RegexParse.AnyChar:
-                s = new State(null, null, RegexParse.AnyChar);
+                s = new State(RegexParse.AnyChar);
                 return new Frag(s, toList(s));
             case RegexParse.EscapeChar:
-               /* EscapeChar escapeChar = (EscapeChar) regex;
-                switch (escapeChar.value){
-                    case 's':
+                /*char c =((EscapeChar)regex).value;
+                State se = null;
+                switch (c){
+                    case 'w':
+                        se = new State(RegexParse.Word);
                         break;
-                    case
-                }*/
+                }
+                return new Frag(se,toList(se));*/
                 return null;
             case RegexParse.MultiChoice:
+                ScaleState ss = new ScaleState(((MultiChoice)regex).chars);
+                return new Frag(ss, toList(ss));
+
              /*   MultiChoice multiChoice = (MultiChoice) regex≥;
                */
-                return null;
         }
         return null;
     }
@@ -95,10 +92,8 @@ public class Pattern {
         }
     }
 
-    public void patch1(ArrayList<State> l, State s)
-    {
-        for (int i = 0; i < l.size(); i++)
-        {
+    public void patch1(ArrayList<State> l, State s) {
+        for (int i = 0; i < l.size(); i++) {
             l.get(i).out1 = s;
         }
     }
@@ -114,40 +109,36 @@ public class Pattern {
         return list;
     }
 
-    public boolean match( String goalStr) {
+    public boolean match(String goalStr) {
         Frag frag = toNFA(regex);
-        patch(frag.out,State.MatchState);
-        patch1(frag.out1,State.MatchState);
+        patch(frag.out, State.MatchState);
+        patch1(frag.out1, State.MatchState);
 
         this.start = frag.start;
-        NfaList startNFA = new NfaList(startList(start, l1));
-        dStart = new DState(startNFA);
-        dStateMap.put(startNFA, dStart);
-
+       // NfaList startNFA = new NfaList(startList(start, l1));
+        //dStart = new DState(startNFA);
 
         ArrayList<State> clist, nlist, t;
-        for (int startIndex = 0; startIndex < goalStr.length(); startIndex++)
-        {
+        for (int startIndex = 0; startIndex < goalStr.length(); startIndex++) {
             clist = startList(start, l1);
             nlist = l2;
-            for (int i = startIndex; i < goalStr.length(); i++)
-            {
+            for (int i = startIndex; i < goalStr.length(); i++) {
                 char c = goalStr.charAt(i);
                 step(clist, c - ' ', nlist);
                 t = clist;
                 clist = nlist;
                 nlist = t;
                 if (clist.isEmpty()) break;
-                if (isMatch(clist)) return true;
+                // if (isMatch(clist)) return true;
             }
             if (isMatch(clist)) return true;
         }
         return false;
     }
 
-    boolean isMatch(List l){
-        for (int i=0 ; i<l.size() ; i++){
-            if (l.get(i).equals(State.MatchState)){
+    boolean isMatch(List l) {
+        for (int i = 0; i < l.size(); i++) {
+            if (l.get(i).equals(State.MatchState)) {
                 return true;
             }
         }
@@ -156,8 +147,7 @@ public class Pattern {
 
     int listid;
 
-    private ArrayList<State> startList(State s, ArrayList<State> l)
-    {
+    private ArrayList<State> startList(State s, ArrayList<State> l) {
         listid++;
         l.clear();
         addState(l, s);
@@ -168,32 +158,33 @@ public class Pattern {
         if (s == null || s.lastlist == listid) {
             return;
         }
-        if (s.lastlist == State.Split) {
+        s.lastlist = listid;
+        if (s.c == State.Split) {
             addState(l, s.out);
             addState(l, s.out1);
+            return;
+        }
+        if (s.c == RegexParse.NULL) {
+            addState(l, s.out);
             return;
         }
         l.add(s);
     }
 
-    private void step(ArrayList<State> clist, int c, ArrayList<State> nlist)
-    {
+    private void step(ArrayList<State> clist, int c, ArrayList<State> nlist) {
         int i;
         State s;
         listid++;
         nlist.clear();
-        for (i = 0; i < clist.size(); i++)
-        {
+        for (i = 0; i < clist.size(); i++) {
             s = clist.get(i);
-            if (s.c == c || (s.c == RegexParse.AnyChar && c != '\n' - ' ')
-                    || ( Character.isLetter(s.c))
-                    || (!Character.isLetter(s.c))) addState(
-                    nlist, s.out);
-          /*  else if (s.c == Scale)
+            if (s.c == c || (s.c == RegexParse.AnyChar && c != '\n' - ' '))
+                addState(nlist, s.out);
+            else if (s.c == RegexParse.Scale)
             {
                 ScaleState ss = (ScaleState) s;
                 if (ss.scale[c]) addState(nlist, ss.out);
-            }*/
+            }
         }
     }
 

@@ -179,6 +179,8 @@ public class RegexParse {
     public final static int StarChar = 7;
     public final static int QuestionChar = 8;
     public final static int NormalChar = 9;
+    public final static int Scale = 10;
+    public final static int Word = 11;
 
 
 }
